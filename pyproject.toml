@@ -1,0 +1,26 @@
+[project]
+name = "highload-payments"
+version = "0.1.0"
+description = "Example of a highload payments system"
+requires-python = ">=3.13"
+readme = "README.md"
+
+authors = [
+    { name = "mbalashovv", email = "isdedtool@gmail.com" },
+]
+maintainers = [
+    { name = "mbalashovv", email = "isdedtool@gmail.com" },
+]
+
+dependencies = [
+    "alembic>=1.18.4",
+    "asyncpg>=0.31.0",
+    "fastapi>=0.133.1",
+    "faststream[nats]>=0.6.6",
+    "httpx>=0.28.1",
+    "orjson>=3.11.7",
+    "pydantic>=2.12.5",
+    "redis>=7.2.1",
+    "sqlalchemy>=2.0.47",
+    "uvicorn>=0.41.0",
+]
