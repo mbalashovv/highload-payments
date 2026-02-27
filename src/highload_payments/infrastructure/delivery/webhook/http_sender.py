@@ -1,0 +1,13 @@
+from highload_payments.application.ports.delivery import DeliveryResult, WebhookSenderPort
+from highload_payments.domain.entities.webhook_endpoint import WebhookEndpoint
+
+
+class HttpWebhookSender(WebhookSenderPort):
+    async def send(
+        self,
+        endpoint: WebhookEndpoint,
+        event_type: str,
+        payload: dict,
+    ) -> DeliveryResult:
+        raise NotImplementedError
+
