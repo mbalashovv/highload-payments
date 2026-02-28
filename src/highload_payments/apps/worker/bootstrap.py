@@ -1,3 +1,5 @@
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
 from highload_payments.application.policies.retry import ExponentialBackoffPolicy
 from highload_payments.application.use_cases.publish_outbox_batch import (
     PublishOutboxBatchUseCase,
@@ -7,9 +9,12 @@ from highload_payments.infrastructure.messaging.jetstream.publisher import JetSt
 from highload_payments.infrastructure.settings import WorkerSettings
 
 
-def build_publish_outbox_use_case(settings: WorkerSettings) -> PublishOutboxBatchUseCase:
+def build_publish_outbox_use_case(
+    settings: WorkerSettings,
+    session_factory: async_sessionmaker[AsyncSession],
+) -> PublishOutboxBatchUseCase:
     return PublishOutboxBatchUseCase(
-        uow=SqlAlchemyUnitOfWork(db_config=settings.db),
+        uow=SqlAlchemyUnitOfWork(session_factory=session_factory),
         publisher=JetStreamPublisher(nats_config=settings.nats),
         retry_policy=ExponentialBackoffPolicy(),
     )
