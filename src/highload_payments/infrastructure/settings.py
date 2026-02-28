@@ -70,7 +70,7 @@ class DispatcherSettings:
 def load_api_settings() -> ApiSettings:
     return ApiSettings(
         common=_load_common_config(),
-        db=_load_db_config(),
+        db=load_db_config(),
         nats=_load_nats_config(),
         api=_load_api_config(),
     )
@@ -79,7 +79,7 @@ def load_api_settings() -> ApiSettings:
 def load_worker_settings() -> WorkerSettings:
     return WorkerSettings(
         common=_load_common_config(),
-        db=_load_db_config(),
+        db=load_db_config(),
         nats=_load_nats_config(),
         worker=_load_worker_config(),
     )
@@ -88,7 +88,7 @@ def load_worker_settings() -> WorkerSettings:
 def load_dispatcher_settings() -> DispatcherSettings:
     return DispatcherSettings(
         common=_load_common_config(),
-        db=_load_db_config(),
+        db=load_db_config(),
         nats=_load_nats_config(),
         dispatcher=_load_dispatcher_config(),
     )
@@ -102,7 +102,7 @@ def _load_common_config() -> CommonConfig:
     )
 
 
-def _load_db_config() -> DbConfig:
+def load_db_config() -> DbConfig:
     config = DbConfig(
         dsn=os.getenv(
             "DB_DSN",

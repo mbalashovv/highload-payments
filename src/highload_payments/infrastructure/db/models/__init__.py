@@ -1,3 +1,6 @@
-from highload_payments.infrastructure.db.models.base import Base
+from highload_payments.infrastructure.db.models.base import BaseModel
+from highload_payments.infrastructure.db.models.outbox_event import OutboxEventModel
+from highload_payments.infrastructure.db.models.payment import PaymentModel
+from highload_payments.infrastructure.db.models.webhook_endpoint import WebhookEndpointModel
 
-__all__ = ["Base"]
+__all__ = ["BaseModel", "OutboxEventModel", "PaymentModel", "WebhookEndpointModel"]
