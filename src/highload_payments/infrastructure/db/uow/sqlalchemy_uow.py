@@ -1,4 +1,5 @@
 from highload_payments.application.ports.uow import UnitOfWork
+from highload_payments.infrastructure.settings import DbConfig
 from highload_payments.infrastructure.db.repositories.sqlalchemy_repositories import (
     SqlAlchemyOutboxRepository,
     SqlAlchemyPaymentRepository,
@@ -7,7 +8,8 @@ from highload_payments.infrastructure.db.repositories.sqlalchemy_repositories im
 
 
 class SqlAlchemyUnitOfWork(UnitOfWork):
-    def __init__(self) -> None:
+    def __init__(self, db_config: DbConfig) -> None:
+        self._db_config = db_config
         self.payments = SqlAlchemyPaymentRepository()
         self.outbox = SqlAlchemyOutboxRepository()
         self.webhook_endpoints = SqlAlchemyWebhookEndpointRepository()
@@ -24,4 +26,3 @@ class SqlAlchemyUnitOfWork(UnitOfWork):
 
     async def rollback(self) -> None:
         raise NotImplementedError
-
