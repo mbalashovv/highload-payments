@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import os
+from urllib.parse import quote_plus
 
 
 @dataclass(frozen=True, slots=True)
@@ -103,20 +104,34 @@ def _load_common_config() -> CommonConfig:
 
 
 def load_db_config() -> DbConfig:
-    config = DbConfig(
-        dsn=os.getenv(
-            "DB_DSN",
-            "postgresql+asyncpg://postgres:postgres@localhost:5432/payments",
-        ),
-        pool_size=int(os.getenv("DB_POOL_SIZE", "10")),
-        max_overflow=int(os.getenv("DB_MAX_OVERFLOW", "20")),
+    user = os.getenv("POSTGRES_USER", "postgres")
+    password = os.getenv("POSTGRES_PASSWORD", "postgres")
+    host = os.getenv("POSTGRES_HOST", "localhost")
+    port = int(os.getenv("POSTGRES_PORT", "5432"))
+    name = os.getenv("POSTGRES_DB", "payments")
+
+    dsn = (
+        f"postgresql+asyncpg://"
+        f"{quote_plus(user)}:{quote_plus(password)}"
+        f"@{host}:{port}/{name}"
     )
-    if not config.dsn:
-        raise ValueError("DB_DSN must not be empty")
+    config = DbConfig(
+        dsn=dsn,
+        pool_size=int(os.getenv("POSTGRES_POOL_SIZE", "10")),
+        max_overflow=int(os.getenv("POSTGRES_MAX_OVERFLOW", "20")),
+    )
+    if not user:
+        raise ValueError("POSTGRES_USER must not be empty")
+    if not host:
+        raise ValueError("POSTGRES_HOST must not be empty")
+    if not name:
+        raise ValueError("POSTGRES_DB must not be empty")
+    if port < 1 or port > 65535:
+        raise ValueError("POSTGRES_PORT must be in range 1..65535")
     if config.pool_size < 1:
-        raise ValueError("DB_POOL_SIZE must be >= 1")
+        raise ValueError("POSTGRES_POOL_SIZE must be >= 1")
     if config.max_overflow < 0:
-        raise ValueError("DB_MAX_OVERFLOW must be >= 0")
+        raise ValueError("POSTGRES_MAX_OVERFLOW must be >= 0")
     return config
 
 
