@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+import orjson
 from typing import Any
 
 from sqlalchemy import and_, or_, select
@@ -17,7 +18,7 @@ class SqlAlchemyOutboxRepository(SqlAlchemyRepository, OutboxRepository):
                 event_id=event.event_id,
                 aggregate_id=event.aggregate_id,
                 event_type=event.event_type,
-                payload=event.payload,
+                payload=_normalize_payload(event.payload),
                 status=event.status.value,
                 attempts=event.attempts,
                 next_retry_at=event.next_retry_at,
@@ -60,7 +61,7 @@ class SqlAlchemyOutboxRepository(SqlAlchemyRepository, OutboxRepository):
         row.next_retry_at = event.next_retry_at
         row.last_error = event.last_error
         row.processed_at = event.processed_at
-        row.payload = event.payload
+        row.payload = _normalize_payload(event.payload)
 
     @staticmethod
     def _to_domain(row: OutboxEventModel) -> OutboxEvent:
@@ -82,3 +83,7 @@ class SqlAlchemyOutboxRepository(SqlAlchemyRepository, OutboxRepository):
             created_at=row.created_at,
             processed_at=row.processed_at,
         )
+
+
+def _normalize_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    return orjson.loads(orjson.dumps(payload, default=str))
