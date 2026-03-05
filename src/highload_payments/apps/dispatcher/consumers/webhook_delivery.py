@@ -1,5 +1,6 @@
 from highload_payments.application.dto.commands import DeliverWebhookCommand
 from highload_payments.application.use_cases.deliver_webhook_event import (
+    DeliveryOutcome,
     DeliverWebhookEventUseCase,
 )
 
@@ -7,6 +8,5 @@ from highload_payments.application.use_cases.deliver_webhook_event import (
 async def consume_event(
     use_case: DeliverWebhookEventUseCase,
     command: DeliverWebhookCommand,
-) -> int:
+) -> DeliveryOutcome:
     return await use_case.execute(command)
-

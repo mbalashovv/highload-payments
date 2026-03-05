@@ -4,9 +4,11 @@ from uuid import UUID
 
 from highload_payments.apps.dispatcher.bootstrap import build_deliver_webhook_use_case
 from highload_payments.apps.dispatcher.consumers.webhook_delivery import consume_event
+from highload_payments.application.policies.retry import ExponentialBackoffPolicy
 from highload_payments.application.dto.commands import DeliverWebhookCommand
 from highload_payments.infrastructure.db.session import create_db_runtime
 from highload_payments.infrastructure.messaging.jetstream.webhook_consumer import (
+    ConsumeDecision,
     JetStreamWebhookConsumer,
 )
 from highload_payments.infrastructure.observability.logging import configure_logging
@@ -18,7 +20,17 @@ async def run() -> None:
     configure_logging(level=settings.common.log_level)
     logger = logging.getLogger(__name__)
     db_runtime = create_db_runtime(settings.db)
-    consumer = JetStreamWebhookConsumer(nats_config=settings.nats)
+    max_attempts = settings.dispatcher.max_retries + 1
+    backoff_policy = ExponentialBackoffPolicy(
+        base_seconds=settings.dispatcher.retry_base_seconds,
+        max_seconds=settings.dispatcher.retry_max_seconds,
+        jitter_seconds=settings.dispatcher.retry_jitter_seconds,
+    )
+    consumer = JetStreamWebhookConsumer(
+        nats_config=settings.nats,
+        max_deliver=max_attempts,
+        ack_wait_seconds=settings.dispatcher.consumer_ack_wait_seconds,
+    )
 
     try:
         use_case = build_deliver_webhook_use_case(
@@ -26,11 +38,11 @@ async def run() -> None:
             session_factory=db_runtime.session_factory,
         )
 
-        async def handle_envelope(envelope: dict) -> None:
+        async def handle_envelope(envelope: dict, delivery_attempt: int) -> ConsumeDecision:
             payload = envelope.get("payload")
             if not isinstance(payload, dict):
                 logger.warning("skipping message with invalid payload format")
-                return
+                return ConsumeDecision.term()
 
             command = DeliverWebhookCommand(
                 event_id=UUID(str(envelope["event_id"])),
@@ -39,12 +51,26 @@ async def run() -> None:
                 event_type=str(envelope["event_type"]),
                 payload=payload,
             )
-            delivered = await consume_event(use_case, command)
+            outcome = await consume_event(use_case, command)
             logger.info(
-                "dispatcher delivered webhook event=%s to endpoints=%s",
+                "dispatcher processed webhook event=%s delivered=%s retryable_failures=%s non_retryable_failures=%s attempt=%s",
                 command.event_id,
-                delivered,
+                outcome.delivered_count,
+                outcome.retryable_failures,
+                outcome.non_retryable_failures,
+                delivery_attempt,
             )
+            if outcome.should_retry and delivery_attempt < max_attempts:
+                delay = backoff_policy.next_delay(delivery_attempt)
+                return ConsumeDecision.nak(delay_seconds=delay)
+            if outcome.should_retry:
+                logger.warning(
+                    "marking webhook event terminal after max attempts: event=%s attempts=%s",
+                    command.event_id,
+                    delivery_attempt,
+                )
+                return ConsumeDecision.term()
+            return ConsumeDecision.ack()
 
         await consumer.run(
             handle_envelope,

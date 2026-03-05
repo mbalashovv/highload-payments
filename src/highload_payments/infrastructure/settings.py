@@ -46,6 +46,10 @@ class DispatcherConfig:
     webhook_timeout_seconds: float
     poll_interval_seconds: float
     max_retries: int
+    retry_base_seconds: int
+    retry_max_seconds: int
+    retry_jitter_seconds: float
+    consumer_ack_wait_seconds: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -194,6 +198,10 @@ def _load_dispatcher_config() -> DispatcherConfig:
         webhook_timeout_seconds=float(os.getenv("WEBHOOK_TIMEOUT_SECONDS", "3.0")),
         poll_interval_seconds=float(os.getenv("DISPATCHER_POLL_INTERVAL_SECONDS", "1.0")),
         max_retries=int(os.getenv("DISPATCHER_MAX_RETRIES", "8")),
+        retry_base_seconds=int(os.getenv("DISPATCHER_RETRY_BASE_SECONDS", "1")),
+        retry_max_seconds=int(os.getenv("DISPATCHER_RETRY_MAX_SECONDS", "60")),
+        retry_jitter_seconds=float(os.getenv("DISPATCHER_RETRY_JITTER_SECONDS", "0.25")),
+        consumer_ack_wait_seconds=float(os.getenv("DISPATCHER_CONSUMER_ACK_WAIT_SECONDS", "30")),
     )
     if config.webhook_timeout_seconds <= 0:
         raise ValueError("WEBHOOK_TIMEOUT_SECONDS must be > 0")
@@ -201,4 +209,14 @@ def _load_dispatcher_config() -> DispatcherConfig:
         raise ValueError("DISPATCHER_POLL_INTERVAL_SECONDS must be > 0")
     if config.max_retries < 0:
         raise ValueError("DISPATCHER_MAX_RETRIES must be >= 0")
+    if config.retry_base_seconds < 1:
+        raise ValueError("DISPATCHER_RETRY_BASE_SECONDS must be >= 1")
+    if config.retry_max_seconds < 1:
+        raise ValueError("DISPATCHER_RETRY_MAX_SECONDS must be >= 1")
+    if config.retry_max_seconds < config.retry_base_seconds:
+        raise ValueError("DISPATCHER_RETRY_MAX_SECONDS must be >= DISPATCHER_RETRY_BASE_SECONDS")
+    if config.retry_jitter_seconds < 0:
+        raise ValueError("DISPATCHER_RETRY_JITTER_SECONDS must be >= 0")
+    if config.consumer_ack_wait_seconds <= 0:
+        raise ValueError("DISPATCHER_CONSUMER_ACK_WAIT_SECONDS must be > 0")
     return config
