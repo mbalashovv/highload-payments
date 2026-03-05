@@ -3,6 +3,7 @@ from typing import Protocol
 from highload_payments.application.ports.repositories import (
     OutboxRepository,
     PaymentRepository,
+    WebhookDeliveryStateRepository,
     WebhookEndpointRepository,
 )
 
@@ -11,6 +12,7 @@ class UnitOfWork(Protocol):
     payments: PaymentRepository
     outbox: OutboxRepository
     webhook_endpoints: WebhookEndpointRepository
+    webhook_delivery_states: WebhookDeliveryStateRepository
 
     async def __aenter__(self) -> "UnitOfWork": ...
 
@@ -19,4 +21,3 @@ class UnitOfWork(Protocol):
     async def commit(self) -> None: ...
 
     async def rollback(self) -> None: ...
-

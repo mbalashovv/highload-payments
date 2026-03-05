@@ -6,6 +6,7 @@ from highload_payments.application.ports.uow import UnitOfWork
 from highload_payments.infrastructure.db.repositories import (
     SqlAlchemyOutboxRepository,
     SqlAlchemyPaymentRepository,
+    SqlAlchemyWebhookDeliveryStateRepository,
     SqlAlchemyWebhookEndpointRepository,
 )
 
@@ -17,12 +18,16 @@ class SqlAlchemyUnitOfWork(UnitOfWork):
         self.payments: SqlAlchemyPaymentRepository
         self.outbox: SqlAlchemyOutboxRepository
         self.webhook_endpoints: SqlAlchemyWebhookEndpointRepository
+        self.webhook_delivery_states: SqlAlchemyWebhookDeliveryStateRepository
 
     async def __aenter__(self) -> "SqlAlchemyUnitOfWork":
         self._session = self._session_factory()
         self.payments = SqlAlchemyPaymentRepository(self._session)
         self.outbox = SqlAlchemyOutboxRepository(self._session)
         self.webhook_endpoints = SqlAlchemyWebhookEndpointRepository(self._session)
+        self.webhook_delivery_states = SqlAlchemyWebhookDeliveryStateRepository(
+            self._session
+        )
         return self
 
     async def __aexit__(

@@ -3,6 +3,7 @@ from uuid import UUID
 
 from highload_payments.domain.entities.outbox_event import OutboxEvent
 from highload_payments.domain.entities.payment import Payment
+from highload_payments.domain.entities.webhook_delivery_state import WebhookDeliveryState
 from highload_payments.domain.entities.webhook_endpoint import WebhookEndpoint
 
 
@@ -23,3 +24,20 @@ class OutboxRepository(Protocol):
 class WebhookEndpointRepository(Protocol):
     async def get_by_account(self, account_id: UUID) -> list[WebhookEndpoint]: ...
 
+
+class WebhookDeliveryStateRepository(Protocol):
+    async def initialize_for_event(
+        self,
+        event_id: UUID,
+        endpoint_ids: list[UUID],
+    ) -> None: ...
+
+    async def get_due_by_event(
+        self,
+        event_id: UUID,
+        size: int,
+    ) -> list[WebhookDeliveryState]: ...
+
+    async def get_by_event(self, event_id: UUID) -> list[WebhookDeliveryState]: ...
+
+    async def update(self, state: WebhookDeliveryState) -> None: ...

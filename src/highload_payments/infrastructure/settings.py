@@ -112,8 +112,8 @@ def _load_common_config() -> CommonConfig:
 
 
 def load_db_config() -> DbConfig:
-    user = os.getenv("POSTGRES_USER", "postgres")
-    password = os.getenv("POSTGRES_PASSWORD", "postgres")
+    user = os.getenv("POSTGRES_USER", "admin")
+    password = os.getenv("POSTGRES_PASSWORD", "admin")
     host = os.getenv("POSTGRES_HOST", "localhost")
     port = int(os.getenv("POSTGRES_PORT", "5432"))
     name = os.getenv("POSTGRES_DB", "payments")

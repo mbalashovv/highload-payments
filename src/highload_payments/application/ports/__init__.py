@@ -4,6 +4,7 @@ from highload_payments.application.ports.messaging import EventPublisherPort
 from highload_payments.application.ports.repositories import (
     OutboxRepository,
     PaymentRepository,
+    WebhookDeliveryStateRepository,
     WebhookEndpointRepository,
 )
 from highload_payments.application.ports.uow import UnitOfWork
@@ -15,6 +16,7 @@ __all__ = [
     "OutboxRepository",
     "PaymentRepository",
     "UnitOfWork",
+    "WebhookDeliveryStateRepository",
     "WebhookEndpointRepository",
     "WebhookSenderPort",
 ]
