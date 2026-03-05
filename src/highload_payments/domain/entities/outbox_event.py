@@ -53,6 +53,7 @@ class OutboxEvent:
 
     def mark_dead(self, reason: str) -> None:
         self.status = OutboxStatus.DEAD
+        self.attempts += 1
         self.last_error = reason
+        self.next_retry_at = None
         self.processed_at = datetime.now(tz=UTC)
-

@@ -16,5 +16,10 @@ def build_publish_outbox_use_case(
     return PublishOutboxBatchUseCase(
         uow=SqlAlchemyUnitOfWork(session_factory=session_factory),
         publisher=JetStreamPublisher(nats_config=settings.nats),
-        retry_policy=ExponentialBackoffPolicy(),
+        retry_policy=ExponentialBackoffPolicy(
+            base_seconds=settings.worker.retry_base_seconds,
+            max_seconds=settings.worker.retry_max_seconds,
+            jitter_seconds=settings.worker.retry_jitter_seconds,
+        ),
+        max_attempts=settings.worker.max_attempts,
     )

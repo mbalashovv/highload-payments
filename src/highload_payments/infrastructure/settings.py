@@ -35,6 +35,10 @@ class ApiConfig:
 class WorkerConfig:
     batch_size: int
     poll_interval_seconds: float
+    max_attempts: int
+    retry_base_seconds: int
+    retry_max_seconds: int
+    retry_jitter_seconds: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -163,11 +167,25 @@ def _load_worker_config() -> WorkerConfig:
     config = WorkerConfig(
         batch_size=int(os.getenv("WORKER_BATCH_SIZE", "100")),
         poll_interval_seconds=float(os.getenv("WORKER_POLL_INTERVAL_SECONDS", "0.5")),
+        max_attempts=int(os.getenv("WORKER_MAX_ATTEMPTS", "10")),
+        retry_base_seconds=int(os.getenv("WORKER_RETRY_BASE_SECONDS", "1")),
+        retry_max_seconds=int(os.getenv("WORKER_RETRY_MAX_SECONDS", "60")),
+        retry_jitter_seconds=float(os.getenv("WORKER_RETRY_JITTER_SECONDS", "0.25")),
     )
     if config.batch_size < 1:
         raise ValueError("WORKER_BATCH_SIZE must be >= 1")
     if config.poll_interval_seconds <= 0:
         raise ValueError("WORKER_POLL_INTERVAL_SECONDS must be > 0")
+    if config.max_attempts < 1:
+        raise ValueError("WORKER_MAX_ATTEMPTS must be >= 1")
+    if config.retry_base_seconds < 1:
+        raise ValueError("WORKER_RETRY_BASE_SECONDS must be >= 1")
+    if config.retry_max_seconds < 1:
+        raise ValueError("WORKER_RETRY_MAX_SECONDS must be >= 1")
+    if config.retry_max_seconds < config.retry_base_seconds:
+        raise ValueError("WORKER_RETRY_MAX_SECONDS must be >= WORKER_RETRY_BASE_SECONDS")
+    if config.retry_jitter_seconds < 0:
+        raise ValueError("WORKER_RETRY_JITTER_SECONDS must be >= 0")
     return config
 
 
