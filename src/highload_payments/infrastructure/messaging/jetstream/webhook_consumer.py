@@ -3,7 +3,6 @@ import orjson
 import logging
 from dataclasses import dataclass
 from enum import StrEnum
-from datetime import timedelta
 from collections.abc import Awaitable, Callable
 
 import nats.errors
@@ -105,7 +104,7 @@ class JetStreamWebhookConsumer:
             config=ConsumerConfig(
                 durable_name=self._nats_config.consumer_durable,
                 ack_policy=AckPolicy.EXPLICIT,
-                ack_wait=timedelta(seconds=self._ack_wait_seconds),
+                ack_wait=self._ack_wait_seconds,
                 max_deliver=self._max_deliver,
             ),
         )
