@@ -72,7 +72,6 @@ async def run_async_migrations(engine: AsyncEngine) -> None:
 
 
 def setup_engine() -> Engine:
-    print(FULL_URL)
     return engine_from_config(
         config.get_section(config.config_ini_section) or {},
         prefix="sqlalchemy.",
