@@ -4,9 +4,15 @@ from collections import deque
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+import os
+from pathlib import Path
 from uuid import UUID, uuid4
 
+import asyncpg
 import pytest
+import pytest_asyncio
+from sqlalchemy import delete
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from highload_payments.application.ports.uow import UnitOfWork
 from highload_payments.domain.entities.outbox_event import OutboxEvent
@@ -19,9 +25,21 @@ from highload_payments.domain.value_objects.outbox_status import OutboxStatus
 from highload_payments.domain.value_objects.webhook_delivery_status import (
     WebhookDeliveryStatus,
 )
+from highload_payments.infrastructure.db.models import BaseModel
+from highload_payments.infrastructure.db.models.outbox_event import OutboxEventModel
+from highload_payments.infrastructure.db.models.payment import PaymentModel
+from highload_payments.infrastructure.db.models.webhook_delivery_state import (
+    WebhookDeliveryStateModel,
+)
+from highload_payments.infrastructure.db.models.webhook_endpoint import (
+    WebhookEndpointModel,
+)
+from highload_payments.infrastructure.db.session import DbRuntime, create_db_runtime
+from highload_payments.infrastructure.db.uow.sqlalchemy_uow import SqlAlchemyUnitOfWork
 from highload_payments.infrastructure.idempotency.in_memory_store import (
     InMemoryIdempotencyStore,
 )
+from highload_payments.infrastructure.settings import DbConfig
 
 
 @dataclass(slots=True)
@@ -185,3 +203,102 @@ def seed_webhook_endpoints(
             fake_uow.webhook_endpoints.items[endpoint.endpoint_id] = endpoint
 
     return _seed
+
+
+@pytest.fixture(scope="session")
+def test_db_config() -> DbConfig:
+    return _load_test_db_config()
+
+
+@pytest_asyncio.fixture(scope="session")
+async def db_runtime(test_db_config: DbConfig) -> DbRuntime:
+    if not await _ensure_test_database(test_db_config):
+        pytest.skip("PostgreSQL is not available for integration tests")
+
+    runtime = create_db_runtime(test_db_config)
+    async with runtime.engine.begin() as connection:
+        await connection.run_sync(BaseModel.metadata.create_all)
+    yield runtime
+    await runtime.dispose()
+
+
+@pytest_asyncio.fixture
+async def db_session_factory(
+    db_runtime: DbRuntime,
+) -> async_sessionmaker[AsyncSession]:
+    await _truncate_tables(db_runtime)
+    return db_runtime.session_factory
+
+
+@pytest_asyncio.fixture
+async def db_session(
+    db_session_factory: async_sessionmaker[AsyncSession],
+) -> AsyncSession:
+    async with db_session_factory() as session:
+        yield session
+
+
+@pytest.fixture
+def sql_uow(
+    db_session_factory: async_sessionmaker[AsyncSession],
+) -> SqlAlchemyUnitOfWork:
+    return SqlAlchemyUnitOfWork(session_factory=db_session_factory)
+
+
+def _load_test_db_config() -> DbConfig:
+    env = _read_env_file(Path(__file__).resolve().parents[2] / ".env")
+    user = os.getenv("TEST_POSTGRES_USER", env.get("POSTGRES_USER", "admin"))
+    password = os.getenv("TEST_POSTGRES_PASSWORD", env.get("POSTGRES_PASSWORD", "admin"))
+    host = os.getenv("TEST_POSTGRES_HOST", "127.0.0.1")
+    port = int(os.getenv("TEST_POSTGRES_PORT", env.get("POSTGRES_PORT", "5432")))
+    database = os.getenv("TEST_POSTGRES_DB", "payments_test")
+    return DbConfig(
+        dsn=f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{database}",
+        pool_size=5,
+        max_overflow=5,
+    )
+
+
+async def _ensure_test_database(db_config: DbConfig) -> bool:
+    database_name = db_config.dsn.rsplit("/", 1)[-1]
+    admin_dsn = db_config.dsn.rsplit("/", 1)[0] + "/postgres"
+    try:
+        connection = await asyncpg.connect(admin_dsn.replace("+asyncpg", ""))
+    except Exception:
+        return False
+
+    try:
+        exists = await connection.fetchval(
+            "select 1 from pg_database where datname = $1",
+            database_name,
+        )
+        if not exists:
+            await connection.execute(f'create database "{database_name}"')
+    finally:
+        await connection.close()
+    return True
+
+
+async def _truncate_tables(db_runtime: DbRuntime) -> None:
+    async with db_runtime.engine.begin() as connection:
+        for model in (
+            WebhookDeliveryStateModel,
+            WebhookEndpointModel,
+            OutboxEventModel,
+            PaymentModel,
+        ):
+            await connection.execute(delete(model))
+
+
+def _read_env_file(path: Path) -> dict[str, str]:
+    if not path.exists():
+        return {}
+
+    values: dict[str, str] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=" not in stripped:
+            continue
+        key, value = stripped.split("=", 1)
+        values[key.strip()] = value.strip()
+    return values
